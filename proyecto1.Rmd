@@ -1,0 +1,1139 @@
+---
+title: "Estadistica para Data Science (R Studios)"
+subtitle: "Caso: Siniestros en Seguros  Data & Analytics"
+author: "Edgar Alexis Garcia"
+date: "2023-09-09"
+output:
+  html_document:
+    toc: FALSE
+    toc_float: FALSE
+    code_download: FALSE
+    code_folding: show
+    theme: journal
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(dplyr)
+library(kableExtra)
+library(gridExtra)
+library(ggplot2)
+library(rmarkdown)
+library(knitr)
+library(parallel)
+library(DataExplorer)
+library(data.table)
+library(networkD3)
+library(car)
+library(cowplot)
+set.seed(1)
+
+```
+
+
+## Introduccion 
+- Este informe se centra en la aplicación del análisis exploratorio de datos utilizando el lenguaje de programación R, una de las herramientas más poderosas y versátiles en el campo de la ciencia de datos. En este informe, exploraremos cómo R puede ayudarnos a cargar, limpiar, explorar y visualizar datos de manera efectiva, proporcionando una base sólida para futuros análisis y toma de decisiones.
+
+## Objetivos.
+- Visualizar los datos de la Data Siniestros de seguros.
+- Realizar analisis exploratorio de los datos.
+- Generar nuevas variables de valor.
+- Aplicar Estadistica descriptiva.
+- Aplicar Estadistica inferencial.
+
+## Planteamiento del Problema.
+### Caso Siniestros en Seguros.
+
+<html>
+<body>
+<p style="color:blue;">Se tienen un conjunto de datos simulados basado en 6 meses de informacion recogida por una aseguradora mundial "VIDA SEGUROS", cuyo objetivo fue desarrollar un modelo para determinar la probabilidad de siniestros en los proximos 12 meses. La variable de siniestro en destino es la siniestralidad que representan el estado binario de No Siniestros 0 y Siniestros 1.</p>
+</body>
+</html>
+
+## Cargar la data de trabajo.
+- Cargamos la base de datos con formato csv haciendo uso del paquete readxl, compiando la direccion del archivo.
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE, eval=TRUE}
+df <- read.csv("C:/Users/investigacionml/OneDrive - Agropecuaria Montelibano/Escritorio/Postcosecha 1920 2/Data_Analisis/Tarea 1/Siniestros.csv",
+               stringsAsFactors = TRUE, sep=",")
+
+
+```
+
+## Analisis Exploratorio de los datos
+
+
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE, eval=TRUE}
+
+
+tabla <- as.data.frame(introduce(df))
+
+tabla <- tabla[,-9]
+
+tablas <- t(tabla)
+nombres <- c("Cantidad de Filas","Cantidad de Columnas","Columnas Discretas",
+             "Columnas Continuas","Total de Columnas Faltantes","Total de Valores Faltantes",
+             "Filas Completas","Total de Observaciones")
+
+rownames(tablas) <- nombres
+
+tablas <- format(tablas, big.mark = ",")
+
+kable(tablas, format = "html", caption = "Tabla Resumen Datos") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                full_width = T,
+                font_size = 14,
+                fixed_thead = TRUE,
+                position = "left")
+
+```
+-  La estructura de los datos que se han levantodo estan organizados con 5,800 filas y 18 columnas, 1 columna discreta y 17 columnas tipo continua, no hay columnas faltantes, tenemos un total de 2,521 filas que continen valores perdidos, par hacer 104,400 observaciones.
+
+
+## Grafico de Metricas de los datos.
+-  En la base de datos se tiene el 5.6% de variables discretas, el 94.4% son variables continuas, no se encuentra columnas faltantes el 78.6% del total de columnas estan completas y con un total 2.4% de valores faltantes.
+
+```{r, comment=NA, message=FALSE, eval=TRUE, echo=FALSE, fig.keep='all'}
+
+plot_intro(df, ggtheme = theme_classic())
+```
+
+
+
+## Grafico Extructural 
+- Podemos osbserva la data que el  Estado Sinietro lo levanto con 3 factores esto significa que se estan leyendo los valores faltantes como un valor.
+
+```{r plot-str-run, echo=FALSE}
+diagonalNetwork(
+  plot_str(df, print_network = FALSE, title = "grafico estructural"),
+  width = 800,
+  height = 500,
+  fontSize = 25,
+  margin = list(
+    "left" = 50,
+    "right" = 50
+  )
+)
+```
+
+- hacemos la correccion de la variables con la funcion na_if de dplyr que toma 2 argumentos la columna a remplazar y los valores vacios por NA.
+```{r, echo=FALSE}
+df$Estado_Siniestro <- na_if(df$Estado_Siniestro, "")
+```
+
+
+
+## Grafico de valores faltantes pora cada variable.
+- la columna con mayor cantidad de valores faltanes es estado de sinietros con un 18.41% estos datos faltantes estan en la ultimas filas lo cual no estan de forma aleatoria de la data, seguido la variable Antiguedad maxima con 10.12%, los puntajes de morosidad del 2 a 6 presentan valores faltantes que van desde 3.21% a 8.21%, y la columna con los datos del nivel de ingreso con un 4.71% de sus datos que no estan.
+
+```{r, comment=NA, message=FALSE, eval=TRUE, echo=FALSE, fig.keep='all'}
+
+plot_missing(df, ggtheme = theme_classic())
+```
+
+
+## Resumen Estadisco.
+- Obviamos la columnas con el ID del cliente porque no proporciona valor a los datos, 
+
+```{r, comment=NA, echo=FALSE}
+summary(df[, -1])
+
+
+```
+
+
+## Cantidad de valores perdidos por cada variable.
+- La variable Estado Siniestro tiene en sus filas 1068 valores perdidos, seguido con Antiguedad Maxima con 587, Puntaje de morisdad 6 476, Puntaje de morosidad 5 con 403, Puntaje de morosidad 4 con 340, Nivel de ingresos 273, Puntaje de morosidad 3 con 256 y Puntaje de morosidad 2 con 186 datos faltantes.
+
+```{r, comment=NA, echo=FALSE}
+apply(is.na(df), 2, sum)
+
+
+```
+
+
+## Corrigiendo las variables int en numericas
+- Se corrigieron las variables tipo int. en variables numericas.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+var_nums_nombres =names(select_if(df, is.numeric)) # seleccionando solo las columns numéricas
+
+df[var_nums_nombres] <- df[var_nums_nombres] %>% # convertimos las columnas int en num?ricas
+  mutate_all(as.numeric)
+
+
+diagonalNetwork(
+  plot_str(df, print_network = FALSE, title = "grafico estructural"),
+  width = 800,
+  height = 500,
+  fontSize = 25,
+  margin = list(
+    "left" = 50,
+    "right" = 50
+  )
+)
+
+```
+
+
+## Indices de columnas 
+- Visualizamos los indices de las columnas de las variables para realizar la imputacion a las variales con valores faltantes.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+alexis <- names(df)
+
+for (i in seq_along(df)) {
+  print(paste("", i, "", alexis[i]))
+}
+
+```
+
+
+
+
+## Imputacion de datos.
+- Las variables numericas Antiguedad Maxima, Nivel de ingresos, Puntaje de morosidasd del 2 al 6 se imputaron con la moda de los datos.
+
+```{r, echo=FALSE, comment=NA, message=FALSE, eval=TRUE}
+
+var_nums = c(2,3,6,7,8,9,10) 
+
+
+imputar.variables.numericas <- function(DFx, v_nums) {
+  for (i in v_nums) {
+    moda <- as.numeric(names(sort(table(DFx[, i]), decreasing = TRUE)[1])) # Calcula la moda
+    
+    DFx[, i][is.na(DFx[, i])] <- moda # Imputar con la moda
+  }
+  return(DFx)
+}
+
+
+df = imputar.variables.numericas(df, var_nums) 
+
+
+```
+
+
+
+## datos imputados con la moda para las variable
+- Podemos observar que ya no se encuentras valores faltantes la correccion se hizo de manera correcta solo la columna Estado Siniestro no se ha corregido.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+plot_missing(df, ggtheme = theme_classic())
+
+```
+
+
+
+## Grafico de cajas.
+- Visualizacion de datos donde podemos ver que hay columnas con valores sospechosamnete retirados de los demas.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+plot_boxplot(df[,-1], by = "Antiguedad_Maxima", ggtheme = theme_classic())
+
+```
+
+
+
+## Visualizacion datos atipicos de las variables numericas.
+- Procedemos a visualizar con graficos de cajas separados y con indeces de valores atipicos para considerar si se eliminan de la data esos valores sospechosamente grandes, hacemos uso del paquete dplyr para generar los datos atipicos y con ggplo2 generamos el grafico de cajas y usamos el coeficiente de Tukey para detectar valores atipicos en esta usamos el coef = 3.
+
+- En variable Antiguedad maxima la posicion 36 se detecta un valor diferente a los demas.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Antiguedad_Maxima %in% boxplot.stats(df$Antiguedad_Maxima, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Antiguedad_Maxima)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Antiguedad_Maxima, label = fila),col = "red")
+
+   
+```
+
+- En el nivel de ingreso se puede observar que hay un grupo que tienen un nivel de ingreso a 5 que esta fuera pero no se deben de considerar como atipicos.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Nivel_Ingresos %in% boxplot.stats(df$Nivel_Ingresos, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Nivel_Ingresos)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Nivel_Ingresos, label = fila),col = "red")
+
+   
+```
+
+- En la variables Saldo Pendiente podemos observar que el valor de la fila 3921 esta muy separadar del resto de los valores.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Saldo_Pendiente %in% boxplot.stats(df$Saldo_Pendiente, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Saldo_Pendiente)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Saldo_Pendiente, label = fila),col = "red")
+
+```   
+- La columna con el Puntaje de Morosidad 1 no se visualizan datos atipicos.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Puntaje_Morosidad1 %in% boxplot.stats(df$Puntaje_Morosidad1, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Puntaje_Morosidad1)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Puntaje_Morosidad1, label = fila),col = "red")
+
+```   
+
+- En la variable Puntaje de Morosidad 2 no se visualizan datos atipicos.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Puntaje_Morosidad2 %in% boxplot.stats(df$Puntaje_Morosidad2, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Puntaje_Morosidad2)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Puntaje_Morosidad2, label = fila),col = "red")
+
+```   
+
+- En la Columna con los datos de Puntaje de Morosidad 3 no se aprecian valores sospechasomanete grandes.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Puntaje_Morosidad3 %in% boxplot.stats(df$Puntaje_Morosidad3, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Puntaje_Morosidad3)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Puntaje_Morosidad3, label = fila),col = "red")
+
+```   
+
+
+- En Puntaje de Morosidad 4 no se observan valores atipicos.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Puntaje_Morosidad4 %in% boxplot.stats(df$Puntaje_Morosidad4, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Puntaje_Morosidad4)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Puntaje_Morosidad4, label = fila),col = "red")
+
+``` 
+
+
+
+- En Puntaje de Morosidad 5 no se aprecian valores con datos atipicos se miran con una distribucion similar al resto.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Puntaje_Morosidad5 %in% boxplot.stats(df$Puntaje_Morosidad5, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Puntaje_Morosidad5)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Puntaje_Morosidad5, label = fila),col = "red")
+
+```   
+
+- Igual que en los demas puntajes de morosidad en el numero 6 no se aprecian valores atipicos.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Puntaje_Morosidad6 %in% boxplot.stats(df$Puntaje_Morosidad6, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Puntaje_Morosidad6)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Puntaje_Morosidad6, label = fila),col = "red")
+
+```   
+
+- Para la variable Saldo Pendiente del seguro se logra ver que en la fila 934 hay un valor con una separacion considerable como un valor atipico.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Saldo_Pendiente_Seg %in% boxplot.stats(df$Saldo_Pendiente_Seg, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Saldo_Pendiente_Seg)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Saldo_Pendiente_Seg, label = fila),col = "red")
+
+```   
+
+- Para el la columna Siniestro 1 se miran 2 valores en la fila 4834 y en la fila 4755 con valores separados del conjunto de datos.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Siniestros1 %in% boxplot.stats(df$Siniestros1, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Siniestros1)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Siniestros1, label = fila),col = "red")
+
+```   
+
+
+
+- Igual que el siniestros anterios en siniestros 2 se logran mirar 2 valores sospechoss.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Siniestros2 %in% boxplot.stats(df$Siniestros2, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Siniestros2)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Siniestros2, label = fila),col = "red")
+
+```   
+
+- En Siniestros 3 tenemos los mismos valores diferentes del grupo, como valores atipicos.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Siniestros3 %in% boxplot.stats(df$Siniestros3, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Siniestros3)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Siniestros3, label = fila),col = "red")
+
+```   
+
+- En siniestros 4 se puede ver que aqui solo un datos esta mas alejado.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Siniestros4 %in% boxplot.stats(df$Siniestros4, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Siniestros4)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Siniestros4, label = fila),col = "red")
+
+```   
+
+- En siniestros 5 tambien en la fila 4834 tenemos el mismo valor sospechoso.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Siniestros5 %in% boxplot.stats(df$Siniestros5, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Siniestros5)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Siniestros5, label = fila),col = "red")
+
+``` 
+
+- En la columna sinestros 6 se puede observar en la misma posicion el valor atipico en la fila 4834
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE}
+
+
+atipicos <- df %>%
+  mutate(fila = 1:nrow(df)) %>%
+  filter(Siniestros6 %in% boxplot.stats(df$Siniestros6, coef = 3)$out)
+
+# Crear el gráfico de caja con valores atípicos
+df %>%
+  ggplot(aes(y = Siniestros6)) +
+  geom_boxplot(coef = 3, outlier.shape = NA) +
+  geom_text(data = atipicos,aes(x = 0, y = Siniestros6, label = fila),col = "red")
+
+``` 
+
+
+
+
+
+## Eliminando datos atipicos.
+- Despues de haber visualizado las varialbes de forma separada se  eliminaran  todas filas con la posicion 4834, 934, 3921, 4755 y 36 por visualizarse mas separados del grupo, esta nueva data se guardara en un objeto "df1" para mantener esa data corregida segura y evitar posibles errores en la llamada de la data principal.
+
+```{r, echo=TRUE, comment=NA,message=FALSE, eval=TRUE}
+
+df1 <- df[c(-4834, -934, -3921, -36, -4755),]
+
+```
+
+
+
+## Grafico de cajas con datos eliminado
+- Podemos observar los valores mas cercanos entre si despues de haber eliminado los valores considerados como sospechosamente grande, se ve una mejor uniformidad segun el panel de graficos de cajas, este creado con el paquete DataExplorer.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+plot_boxplot(df1[,-1], by = "Antiguedad_Maxima", ggtheme = theme_classic())
+
+```
+
+
+### Creacion de nuevas variables
+- Se creo una nueva variable con la funcion "cut" nombrada Ingresos apartir de la variable Nivel_Ingresos categorizada como de 0-1 como "Bajo" de 2-3 como "Medio" y de 4-5 como "Alto".
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+df1$Ingreso <- cut(df1$Nivel_Ingresos, 
+                   breaks = c(-Inf, 1, 3, 5), 
+                   labels = c("Bajo", "Medio", "Alto"))
+
+summary(df1$Ingreso)
+
+```
+
+- Creamos una nueva variable a partir de la suma total de todos lo Siniestros ocurridos para cada cliente con la funcion rowSums.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+df1$Total_Siniestros <- rowSums(df1[, c("Siniestros1", "Siniestros2", "Siniestros3", "Siniestros4", "Siniestros5", "Siniestros6")])
+summary(df1$Total_Siniestros)
+
+```
+
+- Se ha creado una nueva variable Media_Morosidad con el promedio de la tasa de morosidad por cada cliente con la funcion rowMeans.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+df1$Media_Morosidad <- rowMeans(df1[, c("Puntaje_Morosidad1", "Puntaje_Morosidad2", "Puntaje_Morosidad3", "Puntaje_Morosidad4", "Puntaje_Morosidad5", "Puntaje_Morosidad6")])
+summary(df1$Media_Morosidad)
+
+```
+
+
+
+- Visualizamos las estructuctra de la data df2 donde estan todas las variables ori
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+str(df1)
+```
+
+## Medida de Tendencias Central Graficas
+
+- Se realizo el grafico de barras con las metricas de la Media, Moda, Mediana de los la variable Antiguedad Maxima.
+
+### Metricas Antiguedad Maxima
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+media <- round(mean(df1$Antiguedad_Maxima),1)
+mediana <- round(median(df1$Antiguedad_Maxima),1)
+moda <- round(as.numeric(names(sort(table(df1$Antiguedad_Maxima), decreasing = TRUE)[1])),1)
+
+# Crear un dataframe con las medidas
+medidas <- data.frame(Medida = c("Media", "Mediana", "Moda"),
+                      Valor = c(media, mediana, moda))
+
+# Crear el gráfico de barras con colores diferentes
+ggplot(medidas, aes(x = Medida, y = Valor, fill = Medida)) +
+   geom_bar(stat = "identity", width=0.5, alpha=1, show.legend = NULL, colour="black")+
+    labs(title = "Antiguedad Maxima",
+         x = NULL, y = "Antiguedad en Meses") +
+    scale_fill_manual(values = c("Media" = "grey", "Mediana" = "black", "Moda" = "white")) +
+    theme_classic()+
+    geom_text(aes(label= Valor, family= "Calibri"), nudge_x = 0.001, nudge_y = c(1.5),
+            size = 5,
+            color="black", 
+            vjust= 0.01,alpha=1)
+
+
+```
+
+
+- Podemos visualizar que los datos presentan asimitria como indicio que los datos no tienen una distribucion normal de la variables Antiguedad Maxima.
+
+
+### Metricas Saldo Pendiente del Cliente.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+media <- round(mean(df1$Saldo_Pendiente),1)
+mediana <- round(median(df1$Saldo_Pendiente),1)
+moda <- round(as.numeric(names(sort(table(df1$Saldo_Pendiente), decreasing = TRUE)[1])),1)
+
+# Crear un dataframe con las medidas
+medidas <- data.frame(Medida = c("Media", "Mediana", "Moda"),
+                      Valor = c(media, mediana, moda))
+
+# Crear el gráfico de barras con colores diferentes
+ggplot(medidas, aes(x = Medida, y = Valor, fill = Medida)) +
+   geom_bar(stat = "identity", width=0.5, alpha=1, show.legend = NULL, colour="black")+
+    labs(title = "Saldo Pendiente",
+         x = NULL, y = "Saldo P Cliente") +
+    scale_fill_manual(values = c("Media" = "grey", "Mediana" = "black", "Moda" = "white")) +
+    theme_classic()+
+    geom_text(aes(label= Valor, family= "Calibri"), nudge_x = 0.001, nudge_y = c(1.5),
+            size = 5,
+            color="black", 
+            vjust= 0.01,alpha=1)
+
+
+```
+
+
+- En la visualizacion grafica de la media, moda y la mediana de la varible Saldo Pendiente del cliente podemos observar que los datos presentan asimitria y los datos no tienen una distribucion normal.
+
+
+
+
+### Metricas Media de Morosidad
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE,warning=FALSE}
+
+media <- round(mean(df1$Media_Morosidad),1)
+mediana <- round(median(df1$Media_Morosidad),1)
+moda <- round(as.numeric(names(sort(table(df1$Media_Morosidad), decreasing = TRUE)[1])),1)
+
+# Crear un dataframe con las medidas
+medidas <- data.frame(Medida = c("Media", "Mediana", "Moda"),
+                      Valor = c(media, mediana, moda))
+
+# Crear el gráfico de barras con colores diferentes
+ggplot(medidas, aes(x = Medida, y = Valor, fill = Medida)) +
+   geom_bar(stat = "identity", width=0.5, alpha=1, show.legend = NULL, colour="black")+
+    labs(title = "Media de Morosidad",
+         x = NULL, y = "Media Puntaje de Morosidad ") +
+    scale_fill_manual(values = c("Media" = "grey", "Mediana" = "black", "Moda" = "white")) +
+    theme_classic()+
+    geom_text(aes(label= Valor, family= "Calibri"), nudge_x = 0.001, nudge_y = c(1.5),
+            size = 5,
+            color="black", 
+            vjust= 0.01,alpha=1)
+
+
+```
+
+- En la grafica de del puntaje de morosidad se puede ver que los datos no presentan normalidad.
+
+
+
+
+### Metricas de Saldo Pendiente del Seguro.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+media <- round(mean(df1$Saldo_Pendiente_Seg),1)
+mediana <- round(median(df1$Saldo_Pendiente_Seg),1)
+moda <- round(as.numeric(names(sort(table(df1$Saldo_Pendiente_Seg), decreasing = TRUE)[1])),1)
+
+# Crear un dataframe con las medidas
+medidas <- data.frame(Medida = c("Media", "Mediana", "Moda"),
+                      Valor = c(media, mediana, moda))
+
+# Crear el gráfico de barras con colores diferentes
+ggplot(medidas, aes(x = Medida, y = Valor, fill = Medida)) +
+   geom_bar(stat = "identity", width=0.5, alpha=1, show.legend = NULL, colour="black")+
+    labs(title = "Saldo Pendiente del Seguro",
+         x = NULL, y = "Salod P Seguro") +
+    scale_fill_manual(values = c("Media" = "grey", "Mediana" = "black", "Moda" = "white")) +
+    theme_classic()+
+    geom_text(aes(label= Valor, family= "Calibri"), nudge_x = 0.001, nudge_y = c(1.5),
+            size = 5,
+            color="black", 
+            vjust= 0.01,alpha=1)
+
+
+```
+
+
+- En la grafica de Saldo Pendiente del seguro los datos no estan distribuidos normalmente y qeu la meida esta en 4,876.2 y que la mediana y la moda no se tiene saldos pendientes.
+
+### Metricas de la Total de Siniestros.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+media <- round(mean(df1$Total_Siniestros),1)
+mediana <- round(median(df1$Total_Siniestros),1)
+moda <- round(as.numeric(names(sort(table(df1$Total_Siniestros), decreasing = TRUE)[1])),1)
+
+# Crear un dataframe con las medidas
+medidas <- data.frame(Medida = c("Media", "Mediana", "Moda"),
+                      Valor = c(media, mediana, moda))
+
+# Crear el gráfico de barras con colores diferentes
+ggplot(medidas, aes(x = Medida, y = Valor, fill = Medida)) +
+   geom_bar(stat = "identity", width=0.5, alpha=1, show.legend = NULL, colour="black")+
+    labs(title = "Total de Siniestros",
+         x = NULL, y = "Sienietros") +
+    scale_fill_manual(values = c("Media" = "grey", "Mediana" = "black", "Moda" = "white")) +
+    theme_classic()+
+    geom_text(aes(label= Valor, family= "Calibri"), nudge_x = 0.001, nudge_y = c(1.5),
+            size = 5,
+            color="black", 
+            vjust= 0.01,alpha=1)
+
+
+```
+
+
+- En las media de la suma de siniestros tenemos que es 3.4 y para la media y la moda una mediana de 0 y una moda de 0 con visualizacion de no normalidad en los datos de manera informal.
+
+
+
+## Seleccion de variables de interes.
+
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+alexis <- names(df1)
+
+for (i in seq_along(df1)) {
+  print(paste("", i, "", alexis[i]))
+}
+
+```
+Las variables para poder trabajar son:
+- Antiguedad Maxima
+- Ingresos
+- Saldo Pendiente
+- Media_Morosidad
+- Saldo_Pendient_Seg
+- Total_Siniestros.
+
+hacemos la seleccion de las variables del dataframe df1 y los guardamos en un objeto nombrado df2.
+
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+df2 <- df1[, c("Antiguedad_Maxima", "Saldo_Pendiente", "Ingreso", "Total_Siniestros",
+               "Media_Morosidad", "Saldo_Pendiente_Seg")]
+
+colnames(df2)
+
+```
+- Visualizamos el indice de las variables del dataframe df2 con las 6 variables de interes, esto con el objetivo de hacer la llamada a las variables numericas para los analisis.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+alexis <- names(df2)
+
+for (i in seq_along(df2)) {
+  print(paste("", i, "", alexis[i]))
+}
+
+```
+
+## Medidas de Dispersion
+### Centro de Amplitud
+
+- Se realiza el calculo del centro de aplitud con la funcion creada dejando la variable Ingreso por ser categorica tipo factor.
+```{r, echo=FALSE, comment=NA,message=FALSE, eval=TRUE, warning=FALSE}
+
+centro.de.amplitud <- function(x, sin.na=FALSE){
+  
+  if (sin.na==TRUE){
+    return ( (min(x, na.rm = TRUE ) + max(x, na.rm = TRUE))/2 )
+  }
+  else{
+    return ( (min(x) + max(x))/2 )
+  }
+  
+}
+ 
+apply(df2[,c(-3)],2, centro.de.amplitud)
+
+```
+
+
+### Trimedia
+- Se realiza el calculo de la trimedia con la funcion y dejando afuera la varible tipo factor, la trimedia es la media de los cuartiles dividad sobre 4.
+```{r, echo=FALSE, comment=NA, message=FALSE, warning=FALSE}
+
+trimedia<-function(x){ 
+  
+    Q1 = quantile(x,.25, na.rm = TRUE)
+    Q2 = quantile(x,.50, na.rm = TRUE)
+    Q3 = quantile(x,.75, na.rm = TRUE)
+    
+    return ( round((Q1 + 2*Q2 + Q3)/4, 2) )
+}
+
+apply(df2[,c(-3)],2,FUN=trimedia) 
+
+
+```
+
+
+## Medidas de Dispersion
+
+### Cuartiles
+```{r, echo=FALSE, comment=NA, message=FALSE, warning=FALSE}
+
+library(dplyr)
+
+cuartiles<-function(x){ 
+  min <- min(x)
+  max <- max(x)
+  Q1 <- quantile(x,.25)
+  Q2 <- quantile(x,.50)
+  Q3 <- quantile(x,.75)
+  return (c(min, Q1, Q2, Q3, max))
+}
+
+apply(df2[,c(-3)],2,FUN=cuartiles)
+
+```
+- En las 5 variables numericas podemos ver que para la variable Antiguedad Maxima se tiene que el 25% de los datos estan entrer 0 y 8 meses de antiguedad, el 50% de los clientes tienen una antiguedad entre 0 y 28 meses y hay un 25% de clientes que tienen una antiguedad de 68 a 233 meses de estar cotizando para el seguro, en total de siniestros ocurridos por cada cliente se tiene que el 75% de los clientes esta entre 0 y un 1 siniestro, mas el 25% de estos hay tenido una cantidad de siniestros significativos que estan de 1 241 siniestros, el saldo pendiente del seguro solo un 25% esta entre 0 y 329,889 adeudando, segun el promedio de la morosidad esta que un 25% se esta con mora entre 0 y 6, el saldo pendiente del cliente hay un 50% de ellos que adeudan entre 1,100 hasta 90,478.
+
+
+### Desviacion Estandar
+```{r, echo=FALSE, comment=NA, message=FALSE, warning=FALSE}
+
+
+desviacion.estandar<-function(x){ 
+  
+  return (round(sd(x),2))
+}
+
+apply(df2[,c(-3)],2,FUN=desviacion.estandar)
+
+```
+
+
+### Kurtosis
+```{r, echo=FALSE, comment=NA, message=FALSE, warning=FALSE}
+
+library(e1071)                     
+           
+# creamos una función 
+curtosis <- function(x){
+
+    return(kurtosis(x))
+}
+
+apply(df2[,c(-3)],2,FUN=kurtosis) 
+
+```
+- En la kurtosis podemos ver que todos los datos de las variables poseen una curva achatada por lo que es recomendable usar la media armonica.
+
+
+## Graficos histograma de densidad y grafico de cajas con valores atipicos.
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE}
+
+
+
+#Histograma
+hist(df2$Antiguedad_Maxima, probability = TRUE, ylab = "", col = "grey",
+     axes = FALSE, main = "Antiguedad Maxima")
+# Eje
+axis(1)
+# Densidad
+lines(density(df2$Antiguedad_Maxima), col = "red", lwd = 2)
+# Boxplot
+par(new = TRUE)
+boxplot(df2$Antiguedad_Maxima, horizontal = TRUE, axes = FALSE,
+        lwd = 2, col = rgb(0, 1, 1, alpha = 0.15))
+
+
+```
+
+
+- Otra forma de ver los datos segun ditribucion aun podemos ver un grupo de valores que se estan considerando como valores atipicos enpiezan de los 160 meses hasta que hay que considerar, tambien corroboramos la no normalidad.
+
+
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE}
+#Histograma
+hist(df2$Saldo_Pendiente, probability = TRUE, ylab = "", col = "grey",
+     axes = FALSE, main = "Saldo Pendiente del Cliente")
+# Eje
+axis(1)
+# Densidad
+lines(density(df2$Saldo_Pendiente), col = "red", lwd = 2)
+# Boxplot
+par(new = TRUE)
+boxplot(df2$Antiguedad_Maxima, horizontal = TRUE, axes = FALSE,
+        lwd = 2, col = rgb(0, 1, 1, alpha = 0.15))
+
+
+```
+
+
+- Para la variable Saldo Pendiente del Cliente podemos observar valores atipicos y una no districicon normal.
+
+
+
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE}
+#Histograma
+hist(df2$Saldo_Pendiente_Seg, probability = TRUE, ylab = "", col = "grey",
+     axes = FALSE, main = "Saldo Pendiente del Seguro")
+# Eje
+axis(1)
+# Densidad
+lines(density(df2$Saldo_Pendiente_Seg), col = "red", lwd = 2)
+# Boxplot
+par(new = TRUE)
+boxplot(df2$Saldo_Pendiente_Seg, horizontal = TRUE, axes = FALSE,
+        lwd = 2, col = rgb(0, 1, 1, alpha = 0.15))
+
+
+```
+
+
+- En la variable Saldo Pendiente del Seguro tambien no poseen los datos una no normalidad y tambien se pueden observar que hay 4 valores atipicos.
+
+
+
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE}
+#Histograma
+hist(df2$Total_Siniestros, probability = TRUE, ylab = "", col = "grey",
+     axes = FALSE, main = "Total de Siniestros")
+# Eje
+axis(1)
+# Densidad
+lines(density(df2$Total_Siniestros), col = "red", lwd = 2)
+# Boxplot
+par(new = TRUE)
+boxplot(df2$Saldo_Pendiente_Seg, horizontal = TRUE, axes = FALSE,
+        lwd = 2, col = rgb(0, 1, 1, alpha = 0.15))
+
+
+```
+
+
+- La variable total de siniestros se pueden observar 4 valores sospechosamente grandes y tambien el grafico de densidad muestra la no normalidad.
+
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE}
+#Histograma
+hist(df2$Media_Morosidad, probability = TRUE, ylab = "", col = "grey",
+     axes = FALSE, main = "Morosidad")
+# Eje
+axis(1)
+# Densidad
+lines(density(df2$Media_Morosidad), col = "red", lwd = 2)
+# Boxplot
+par(new = TRUE)
+boxplot(df2$Media_Morosidad, horizontal = TRUE, axes = FALSE,
+        lwd = 2, col = rgb(0, 1, 1, alpha = 0.15))
+
+
+```
+
+
+- En la Media de Morosidad no se ven datos atipicos pero si la distribucion de los mismos no presenta normalidad.
+
+## Grafico de Correlacion
+
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE}
+
+plot_correlation(df2)
+
+```
+
+
+- En la relacion de las varibles se puede ver que todas presenta una corralcion debil, en la variable Saldo pendiente del cliente con Ingreso bajo se tiene una correlacion negativa debil de -0.31 a menor ingreso mayor es el saldo pendiente del cliente, otra correlacion debil es con la variable de morosidad es de 0.44 con total de siniestros, a mayor cantidad de siniestros mayor morosidad.
+
+
+#C. Pruebas de Hipotesis
+
+1. Prueba de Normalidad
+
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE}
+
+library(cowplot)
+
+a <- ggplot(df2, aes(x = Ingreso, y = Antiguedad_Maxima)) +
+  geom_boxplot() + theme_bw() +
+  ggtitle("Antiguedad Maxima")
+
+b <- ggplot(df2, aes(x = Antiguedad_Maxima, fill = Ingreso)) +
+  geom_density(alpha = 0.7) + theme_bw() +
+  theme(legend.position = c(0.8, 0.8)) +
+  ggtitle("Antiguedad Maxima") 
+
+
+plot_grid(a, b)
+
+```
+
+
+- Se evaluan las variables Antiguedad Maxima con el Ingreso, podemos ver que a mayor antiguedad en meses es mayor en las personas que tienen un ingreso alto.
+
+
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE}
+
+library(cowplot)
+
+a <- ggplot(df2, aes(x = Ingreso, y = Saldo_Pendiente)) +
+  geom_boxplot() + theme_bw() +
+  ggtitle("Saldo Pendiente del Cliente")
+
+b <- ggplot(df2, aes(x = Saldo_Pendiente, fill = Ingreso)) +
+  geom_density(alpha = 0.7) + theme_bw() +
+  theme(legend.position = c(0.8, 0.8)) +
+  ggtitle("Saldo Pendiente del Cliente") 
+
+
+plot_grid(a, b)
+
+```
+
+
+- Podemos ver que las personas que tienen nivel de ingresos bajos tienen menor saldo pendiente con el seguro.
+
+
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE}
+
+a <- ggplot(df2, aes(x = Ingreso, y = Saldo_Pendiente_Seg)) +
+  geom_boxplot() + theme_bw() +
+  ggtitle("Saldo Pendiente del Seguro")
+
+b <- ggplot(df2, aes(x = Saldo_Pendiente_Seg, fill = Ingreso)) +
+  geom_density(alpha = 0.7) + theme_bw() +
+  theme(legend.position = c(0.8, 0.8)) +
+  ggtitle("Saldo Pendiente del Seguro") 
+
+
+plot_grid(a, b)
+
+```
+
+
+- Se observan que los el seguro tiene mayor saldo con las personas de nivel de ingreso alto.
+
+
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE}
+
+a <- ggplot(df2, aes(x = Ingreso, y = Total_Siniestros)) +
+  geom_boxplot() + theme_bw() +
+  ggtitle("Total de Siniestros")
+
+b <- ggplot(df2, aes(x = Total_Siniestros, fill = Ingreso)) +
+  geom_density(alpha = 0.7) + theme_bw() +
+  theme(legend.position = c(0.8, 0.8)) +
+  ggtitle("Total de Siniestros") 
+
+
+plot_grid(a, b)
+
+```
+
+- En el grafico de caja podemos observar que la mayor cantidad de siniestros se dan las personas que tienen nivel de ingresos bajos.
+
+```{r, echo=FALSE, warning=FALSE, comment=NA, message=FALSE}
+
+a <- ggplot(df2, aes(x = Ingreso, y = Media_Morosidad)) +
+  geom_boxplot() + theme_bw() +
+  ggtitle("Morosidad")
+
+b <- ggplot(df2, aes(x = Media_Morosidad, fill = Ingreso)) +
+  geom_density(alpha = 0.7) + theme_bw() +
+  theme(legend.position = c(0.8, 0.8)) +
+  ggtitle("Morosidad") 
+
+
+plot_grid(a, b)
+
+```
+
+
+- En la distribucion de los datos la morosidad se da en las personas que tienen nivel de ingreso bajo.
+
+## Estadistica Inferencial
+
+### Analisis de Normalidad.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, comment=NA}
+
+
+ks.test(df2$Antiguedad_Maxima, "pnorm", mean(df2$Antiguedad_Maxima), sd(df2$Antiguedad_Maxima))
+ks.test(df2$Saldo_Pendiente, "pnorm", mean(df2$Saldo_Pendiente), sd(df2$Saldo_Pendiente))
+ks.test(df2$Saldo_Pendiente_Seg, "pnorm", mean(df2$Saldo_Pendiente_Seg), sd(df2$Saldo_Pendiente_Seg))
+ks.test(df2$Total_Siniestros, "pnorm", mean(df2$Total_Siniestros), sd(df2$Total_Siniestros))
+ks.test(df2$Media_Morosidad, "pnorm", mean(df2$Media_Morosidad), sd(df2$Media_Morosidad))
+
+```
+
+### Analisis de Homocedasticidad
+
+- De manera forma se procedio hacer analis de normalidad de los datos para las 5 variables numericas, usando la funcion de kolmogorov-Smirnov por ser la cantidad de datos mayor a 50 se concluye que no existe normalidad en ninguna de la variables.
+
+```{r, echo=FALSE, comment=NA, message=FALSE, warning=FALSE}
+# Prueba de homogeneidad de las varianzas
+
+fligner.test(Antiguedad_Maxima ~ Ingreso, df2)
+fligner.test(Saldo_Pendiente ~ Ingreso, df2)
+fligner.test(Saldo_Pendiente_Seg ~ Ingreso, df2)
+fligner.test(Total_Siniestros ~ Ingreso, df2)
+fligner.test(Media_Morosidad ~ Ingreso, df2)
+
+```
+- En la prueba de igualdad de varianza se puede concluir que ningunas de las 5 variables poseen homocedasticidad.
+
+
+
+## Prueba de kruskal-Wallis
+```{r, echo=FALSE, comment=NA, message=FALSE, warning=FALSE}
+
+kruskal.test(Antiguedad_Maxima ~ Ingreso, data = df2)
+kruskal.test(Saldo_Pendiente ~ Ingreso, data = df2)
+kruskal.test(Saldo_Pendiente_Seg ~ Ingreso, data = df2)
+kruskal.test(Media_Morosidad ~ Ingreso, data = df2)
+kruskal.test(Total_Siniestros ~ Ingreso, data = df2)
+```
+- Se concluye que al menos un par de medianas son diferentes en todas la variables en comparacion con la variable nivel de ingresos.
+
+
+
+
+
